@@ -6,12 +6,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -22,6 +25,7 @@ import no.adstate.user.registration.entity.Subscription;
 import no.adstate.user.registration.entity.User;
 import no.adstate.user.registration.repository.SubscriptionRepository;
 import no.adstate.user.registration.repository.UserRepository;
+import no.adstate.user.registration.service.UserService;
 import no.adstate.user.registration.util.Adapter;
 import no.adstate.user.registration.util.JsonConversionUtil;
 
@@ -32,11 +36,14 @@ public class UserControllerTest {
 	@Autowired
 	private MockMvc mockMvc;
 	
-	@Autowired
+	@MockBean
 	private UserRepository userRepository;
 	
-	@Autowired
+	@MockBean
 	private SubscriptionRepository subscriptionRepository;
+	
+	@MockBean
+	private UserService userService;
 	
 	@Test
 	public void testUsernameNullCheckCase() throws Exception {
@@ -100,8 +107,15 @@ public class UserControllerTest {
 	
 	@Test
 	public void testUserSuccessCase() throws Exception {
-		
-		 UserDto userDto = new UserDto("Samraju27","###@@@@DFR$%^","samir.raju@outlook.com","Default");
+		 
+		 User user = new User(1,"Samraju27","###@@@@DFR$%^","samir.raju@outlook.com",null);
+		 
+		 UserDto userDto = new UserDto("Samraju27","###@@@@DFR$%^","samir.raju@outlook.com","");
+		 
+		 Mockito.when(userRepository.save(user)).thenReturn(user);
+		 
+		 Mockito.when(userService.create(userDto)).thenReturn(userDto);
+		 
 		 String message = JsonConversionUtil.wrapUserDtoToJsonString(userDto);
 		 
 		 this.mockMvc.perform(post("/user/create")
@@ -112,17 +126,26 @@ public class UserControllerTest {
 	
 	@Test
 	public void testNoUseridCase() throws Exception {
+		
+		 Mockito.when(userRepository.findById(Integer.MAX_VALUE)).thenReturn(null);
 		 
-		 this.mockMvc.perform(get("/user/maillist/{id}", 9999))
+		 Mockito.when(userService.getMailList(Integer.MAX_VALUE)).thenReturn(null);
+		 
+		 this.mockMvc.perform(get("/user/maillist/{id}", Integer.MAX_VALUE))
 		             .andExpect(status().isNoContent());
 				 
 	}
 	
 	@Test
 	public void testNoMailListCase() throws Exception {
-		UserDto userDto = new UserDto("Samraju27","###@@@@DFR$%^","samir.raju@outlook.com","");
-		User user = Adapter.adaptToUserEntity(userDto);
-		user = persistUser(user,userDto);
+		Set<Subscription> subscriptions = new HashSet<>();
+		User user = new User(1,"Samraju27","###@@@@DFR$%^","samir.raju@outlook.com",subscriptions);
+		
+		Mockito.when(userRepository.findById(1)).thenReturn(Optional.of(user));
+		
+		MailListDto mailListDto = Adapter.adaptToMailListDto(user);
+		
+		Mockito.when(userService.getMailList(1)).thenReturn(mailListDto);
 		
 		this.mockMvc.perform(get("/user/maillist/{id}",user.getUserid()))
 		             .andExpect(status().isNotFound());
@@ -131,29 +154,26 @@ public class UserControllerTest {
 	
 	@Test
 	public void testMaillistSuccessCase() throws Exception {
-		UserDto userDto = new UserDto("Samraju27","###@@@@DFR$%^","samir.raju@outlook.com","Default");
-		User user = Adapter.adaptToUserEntity(userDto);
-		user = persistUser(user,userDto);
+		User user = null;
+		Set<Subscription> subscriptions = new HashSet<>();
+		Subscription subscription = new Subscription();
+		subscription.setUser(user);
+		subscription.setSubscription("Default");
+		subscriptions.add(subscription);
+		
+		user = new User(1,"Samraju27","###@@@@DFR$%^","samir.raju@outlook.com",subscriptions);
+		
+        Mockito.when(userRepository.findById(1)).thenReturn(Optional.of(user));
+		
 		MailListDto mailListDto = Adapter.adaptToMailListDto(user);
+		
+		Mockito.when(userService.getMailList(1)).thenReturn(mailListDto);
+
 		String expectedMessage = JsonConversionUtil.wrapMaillistDtoToJsonString(mailListDto);
 		
 		MvcResult result = this.mockMvc.perform(get("/user/maillist/{id}",user.getUserid()))
 		             .andExpect(status().isOk()).andReturn();
 		assertEquals(expectedMessage, result.getResponse().getContentAsString());		 
-	}
-	
-	private User persistUser(User user, UserDto userDto) {
-		user = userRepository.save(user);
-		Set<Subscription> subscriptions = new HashSet<>();
-		user.setSubscriptions(subscriptions);
-		if(!userDto.getMailList().isEmpty()) {
-			Subscription subscription = new Subscription();
-			subscription.setSubscription(userDto.getMailList());
-			subscription.setUser(user);
-			subscriptions.add(subscription);
-            subscriptionRepository.save(subscription);			
-		}
-		return user;
 	}
 
 }

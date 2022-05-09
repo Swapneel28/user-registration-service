@@ -22,6 +22,20 @@ public class Subscription {
 	private User user;
 	private String subscription;
 	
+	
+	
+	public Subscription() {
+		super();
+	}
+	
+	public Subscription(Integer subscriptionid, User user, String subscription) {
+		super();
+		this.subscriptionid = subscriptionid;
+		this.user = user;
+		this.subscription = subscription;
+	}
+
+
 	public Integer getSubscriptionid() {
 		return subscriptionid;
 	}

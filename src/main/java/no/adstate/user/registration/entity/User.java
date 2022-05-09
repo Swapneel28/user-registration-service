@@ -28,6 +28,19 @@ public class User {
 	public User() {
 		super();
 	}
+	
+	
+
+	public User(Integer userid, String username, String password, String email, Set<Subscription> subscriptions) {
+		super();
+		this.userid = userid;
+		this.username = username;
+		this.password = password;
+		this.email = email;
+		this.subscriptions = subscriptions;
+	}
+
+
 
 	public Integer getUserid() {
 		return userid;
